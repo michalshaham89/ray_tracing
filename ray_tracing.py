@@ -17,6 +17,14 @@ class BackFlow(object):
         pass
 
     @staticmethod
+    def dN_dx(x, z):
+        pass
+
+    @staticmethod
+    def dN_dz(x, z):
+        pass
+
+    @staticmethod
     def f(x, z):
         pass
 
@@ -25,7 +33,23 @@ class BackFlow(object):
         pass
 
     @staticmethod
+    def dVx_dx(x, z):
+        pass
+
+    @staticmethod
     def dVx_dz(x, z):
+        pass
+
+    @staticmethod
+    def d2Vx_dz2(x, z):
+        pass
+
+    @staticmethod
+    def d2Vx_dx2(x, z):
+        pass
+
+    @staticmethod
+    def d2Vx_dxdz(x, z):
         pass
 
 
@@ -48,20 +72,23 @@ class Ray(BackFlow):
     def calc_Cg_z(self, x, z, kx, kz):
         return -self.N(x, z) ** 2 * kx ** 2 / self.f(x, z) / kz ** 3 + kx / kz ** 2 * self.dVx_dz(x, z)
 
-    def calc_Omega(self):
-        pass
-
     def ode_x(self, x, z):
         return BackFlow.Vx(x, z) + self.calc_Cg_x
 
     def ode_z(self):
         return self.calc_Cg_z
 
-    def ode_kx(self, x, z):
-        return
+    def ode_kx(self, x, z, kx, kz):
+        return -0.5 * self.d2Vx_dx2(x, z) \
+               + kx / kz * self.d2Vx_dxdz(x, z) \
+               - kx ** 2 / self.f / kz ** 2 * self.N * self.dN_dx(x, z) \
+               - kx * self.dVx_dx(x, z)  # only if doppler shift k*V is relevant
 
-    def ode_kz(self):
-        pass
+    def ode_kz(self, x, z, kx, kz):
+        return -0.5 * self.d2Vx_dxdz(x, z) \
+               + kx / kz * self.d2Vx_dz2(x, z) \
+               - kx ** 2 / self.f / kz ** 2 * self.N * self.dN_dz(x, z) \
+               - kz * self.dVx_dz(x, z)  # only if doppler shift k*V is relevant
 
 
 class RayTracing(object):
