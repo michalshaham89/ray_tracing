@@ -2,58 +2,32 @@ import numpy as np
 from scipy import integrate
 
 
-class BackFlow(object):
+class BarotropicBackFlow(object):
     """
     back flow data
     """
 
     def __init__(self):
-        pass
+        self.f = 1e-4  # coriolis frequency
+        self.N = 0.01
 
-    # initialize flow data. (we start at steady flow)
-
-    @staticmethod
-    def N(x, z):
-        pass
+    def f_eff(self, x):
+        return self.f + 0.5 * self.dVx_dx(x)
 
     @staticmethod
-    def dN_dx(x, z):
-        pass
+    def Vx(x):
+        return -0.2 * np.exp(-1e-8 * x ** 2)
 
     @staticmethod
-    def dN_dz(x, z):
-        pass
+    def dVx_dx(x):
+        return 4e-9 * x * np.exp(-1e-8 * x ** 2)
 
     @staticmethod
-    def f(x, z):
-        pass
-
-    @staticmethod
-    def Vx(x, z):
-        pass
-
-    @staticmethod
-    def dVx_dx(x, z):
-        pass
-
-    @staticmethod
-    def dVx_dz(x, z):
-        pass
-
-    @staticmethod
-    def d2Vx_dz2(x, z):
-        pass
-
-    @staticmethod
-    def d2Vx_dx2(x, z):
-        pass
-
-    @staticmethod
-    def d2Vx_dxdz(x, z):
-        pass
+    def d2Vx_dx2(x):
+        return (-8e-17 * x ** 2 + 4e-9) * np.exp(-1e-8 * x ** 2)
 
 
-class Ray(BackFlow):
+class Ray(object):
     """
     contains data about the ray.
 
@@ -64,31 +38,52 @@ class Ray(BackFlow):
     """
 
     def __init__(self):
-        BackFlow.__init__()
+        option = 1
+        if option == 1:
+            self.BF = BarotropicBackFlow()
+            self.Barotropic = True
 
-    def calc_Cg_x(self, x, z, kx, kz):
-        return self.N(x, z) ** 2 * kx / self.f(x, z) / kz ** 2
+    def calc_Cg_x(self, x, kx, kz):
+        if self.Barotropic:
+            return self.BF.N ** 2 * kx / self.BF.f_eff(x) / kz ** 2
+        else:
+            return self.BF.N ** 2 * kx / self.BF.f_eff(x) / kz ** 2
 
-    def calc_Cg_z(self, x, z, kx, kz):
-        return -self.N(x, z) ** 2 * kx ** 2 / self.f(x, z) / kz ** 3 + kx / kz ** 2 * self.dVx_dz(x, z)
+    def calc_Cg_z(self, x, kx, kz):
+        if self.Barotropic:
+            return -self.BF.N ** 2 * kx ** 2 / self.BF.f_eff(x) / kz ** 3
+        else:
+            return -self.BF.N ** 2 * kx ** 2 / self.BF.f_eff(x) / kz ** 3 + kx / kz ** 2 * self.BF.dVx_dz(x)
 
-    def ode_x(self, x, z):
-        return BackFlow.Vx(x, z) + self.calc_Cg_x
+    def ode_x(self, x, kx, kz):
+        if self.Barotropic:
+            return self.BF.Vx(x) + self.calc_Cg_x(x, kx, kz)
+        else:
+            return self.BF.Vx(x) + self.calc_Cg_x(x, kx, kz)
 
-    def ode_z(self):
-        return self.calc_Cg_z
+    def ode_z(self, x, kx, kz):
+        if self.Barotropic:
+            return self.calc_Cg_z(x, kx, kz)
+        else:
+            return self.calc_Cg_z(x, kx, kz)
 
-    def ode_kx(self, x, z, kx, kz):
-        return -0.5 * self.d2Vx_dx2(x, z) \
-               + kx / kz * self.d2Vx_dxdz(x, z) \
-               - kx ** 2 / self.f / kz ** 2 * self.N * self.dN_dx(x, z) \
-               - kx * self.dVx_dx(x, z)  # only if doppler shift k*V is relevant
+    def ode_kx(self, x, kx, kz):
+        if self.Barotropic:
+            return -0.5 * self.BF.d2Vx_dx2(x) - kx * self.BF.dVx_dx(x)  # only if doppler shift k*V is relevant
+        else:
+            return -0.5 * self.BF.d2Vx_dx2(x) \
+                   + kx / kz * self.BF.d2Vx_dxdz(x) \
+                   - kx ** 2 / self.BF.f(x) / kz ** 2 * self.BF.N(x) * self.BF.dN_dx(x) \
+                   - kx * self.BF.dVx_dx(x)  # only if doppler shift k*V is relevant
 
-    def ode_kz(self, x, z, kx, kz):
-        return -0.5 * self.d2Vx_dxdz(x, z) \
-               + kx / kz * self.d2Vx_dz2(x, z) \
-               - kx ** 2 / self.f / kz ** 2 * self.N * self.dN_dz(x, z) \
-               - kz * self.dVx_dz(x, z)  # only if doppler shift k*V is relevant
+    def ode_kz(self, x, kx, kz):
+        if self.Barotropic:
+            return 0
+        else:
+            return -0.5 * self.BF.d2Vx_dxdz(x) \
+                   + kx / kz * self.BF.d2Vx_dz2(x) \
+                   - kx ** 2 / self.BF.f / kz ** 2 * self.BF.N(x) * self.BF.dN_dz(x) \
+                   - kz * self.BF.dVx_dz(x)  # only if doppler shift k*V is relevant
 
 
 class RayTracing(object):
