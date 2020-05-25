@@ -37,85 +37,97 @@ class Ray(object):
     but the code will be less 'readable'.
     """
 
-    def __init__(self, x0, z0, kx0, kz0):
+    def __init__(self):
         option = 1
         if option == 1:
             self.BF = BarotropicBackFlow()
             self.Barotropic = True
 
-        self.x, self.z, self.kx, self.kz = x0, z0, kx0, kz0
-
-    def calc_Cg_x(self):
+    def calc_Cg_x(self, x, kx, kz):
         if self.Barotropic:
-            return self.BF.N ** 2 * self.kx / self.BF.f_eff(self.x) / self.kz ** 2
+            return self.BF.N ** 2 * kx / self.BF.f_eff(x) / kz ** 2
         else:
-            return self.BF.N ** 2 * self.kx / self.BF.f_eff(self.x, self.z) / self.kz ** 2
+            return self.BF.N ** 2 * kx / self.BF.f_eff(x) / kz ** 2
 
-    def calc_Cg_z(self):
+    def calc_Cg_z(self, x, kx, kz):
         if self.Barotropic:
-            return -self.BF.N ** 2 * self.kx ** 2 / self.BF.f_eff(self.x) / self.kz ** 3
+            return -self.BF.N ** 2 * kx ** 2 / self.BF.f_eff(x) / kz ** 3
         else:
-            return -self.BF.N ** 2 * self.kx ** 2 / self.BF.f_eff(self.x, self.z) / self.kz ** 3 \
-                   + self.kx / self.kz ** 2 * self.BF.dV
-            x_dz(self.x0, self.z0)
+            return -self.BF.N ** 2 * kx ** 2 / self.BF.f_eff(x) / kz ** 3 + kx / kz ** 2 * self.BF.dVx_dz(x)
 
-    def ode_x(self):
+    def ode_x(self, x, kx, kz):
         if self.Barotropic:
-            return self.BF.Vx(self.x) + self.calc_Cg_x()
+            return self.BF.Vx(x) + self.calc_Cg_x(x, kx, kz)
         else:
-            return self.BF.Vx(self.x) + self.calc_Cg_x()
+            return self.BF.Vx(x) + self.calc_Cg_x(x, kx, kz)
 
-    def ode_z(self):
+    def ode_z(self, x, kx, kz):
         if self.Barotropic:
-            return self.calc_Cg_z()
+            return self.calc_Cg_z(x, kx, kz)
         else:
-            return self.calc_Cg_z()
+            return self.calc_Cg_z(x, kx, kz)
 
-    def ode_kx(self):
+    def ode_kx(self, x, kx, kz):
         if self.Barotropic:
-            return -0.5 * self.BF.d2Vx_dx2(self.x) - self.kx * self.BF.dVx_dx(self.x)  # only if doppler shift k*V is relevant
+            return -0.5 * self.BF.d2Vx_dx2(x) - kx * self.BF.dVx_dx(x)  # only if doppler shift k*V is relevant
         else:
-            return -0.5 * self.BF.d2Vx_dx2(self.x, self.z) \
-                   + self.kx / self.kz * self.BF.d2Vx_dxdz(self.x, self.z) \
-                   - self.kx ** 2 / self.BF.f_eff(self.x, self.z) / self.kz ** 2 * self.BF.N(self.x, self.z) \
-                   * self.BF.dN_dx(self.x, self.z) \
-                   - self.kx * self.BF.dVx_dx(self.x, self.z)  # only if doppler shift k*V is relevant
+            return -0.5 * self.BF.d2Vx_dx2(x) \
+                   + kx / kz * self.BF.d2Vx_dxdz(x) \
+                   - kx ** 2 / self.BF.f(x) / kz ** 2 * self.BF.N(x) * self.BF.dN_dx(x) \
+                   - kx * self.BF.dVx_dx(x)  # only if doppler shift k*V is relevant
 
     def ode_kz(self, x, kx, kz):
         if self.Barotropic:
             return 0
         else:
-            return -0.5 * self.BF.d2Vx_dxdz(self.x, self.z) \
-                   + self.kx / kz * self.BF.d2Vx_dz2(self.x, self.z) \
-                   - self.kx ** 2 / self.BF.f / kz ** 2 * self.BF.N(self.x, self.z) \
-                   * self.BF.dN_dz(self.x, self.z) \
-                   - kz * self.BF.dVx_dz(self.x, self.z)  # only if doppler shift k*V is relevant
+            return -0.5 * self.BF.d2Vx_dxdz(x) \
+                   + kx / kz * self.BF.d2Vx_dz2(x) \
+                   - kx ** 2 / self.BF.f / kz ** 2 * self.BF.N(x) * self.BF.dN_dz(x) \
+                   - kz * self.BF.dVx_dz(x)  # only if doppler shift k*V is relevant
 
 
-class RayTracing(Ray):
+class RayTracing(object):
     # simulates a coupled pendulums system, including pendulums and springs
     def __init__(self, x0, z0, kx0, kz0):
-        Ray.__init__(self, x0, z0, kx0, kz0)
         # initialize pendulums system data. accepts input file name or path (string)
         # initialize ray data.
+        self.x0, self.z0, self.kx0, self.kz0 = x0, z0, kx0, kz0
+        self.ray = Ray()
         self.t = 0
         self.t_final = 1
         N_measure = 11
         self.dt = int((self.t_final - self.t) / N_measure)
 
-    def jump(self, t0, t_bound):
+    def set_system(self):
+        """
+        set the system to initial time.
+        this function is still not needed. maybe later on
+        """
+        pass
+
+    def progressing_eq(self):
+        """
+        this equation returns differential equations, Runge-Kutta use.
+        """
+        dx_dt = 0
+        dz_dt = 0
+        dkx_dt = 0
+        dkz_dt = 0
+        return dx_dt, dz_dt, dkx_dt, dkz_dt
+
+    def jump(self, t0, t_bound, y0):
         """
         jump the system one time leap.
         """
-        self.x, self.z, self.kx, self.kz = integrate.RK45((self.ode_x, self.ode_z, self.ode_kx, self.ode_kz),
-                                                          t0, (self.x, self.z, self.kx, self.kz), t_bound)
+        y = integrate.RK45(self.progressing_eq, t0, y0, t_bound)
+        return y
 
-    def output_line(self):
+    def output_line(self, x, z, kx, kz):
         """
         write data to output file
         """
-        output_line = '\n{0:6.6f}\t{1:6.6f}  {2:6.6f}\t{3:6.6f}  {4:6.6f}'\
-            .format(self.t, self.x, self.z, self.kx, self.kz)
+        output_line = '\n{0:6.6f}\t{1:6.6f}  {2:6.6f}\t{4:6.6f}  {5:6.6f}\t{6:6.6f}\t{7:6.6f}  {8:6.6f}  {9:6.6f}' \
+            .format(self.t, x, z, kx, kz, self.ray.omega, *self.ray.Cg)
         return output_line
 
     def open_data_file(self):
@@ -130,17 +142,21 @@ class RayTracing(Ray):
         """
         # open output file
         file_output = self.open_data_file()
-        file_output.write(self.output_line())
+
+        # set system for simulation and output initial data
+        self.set_system()
+        x, z, kx, kz = self.x0, self.z0, self.kx0, self.kz0
+        file_output.write(self.output_line(x, z, kx, kz))
 
         # start moving time forward using algorithm
         while self.t <= self.t_final:
-            self.jump(self.t, self.t + self.dt)
+            x, z, kx, kz = self.jump(self.t, self.t + self.dt, x, z, kx, kz)
             self.t += self.dt  # before or after the step?
-            file_output.write(self.output_line())
+            file_output.write(self.output_line(x, z, kx, kz))
 
         # close output files
         file_output.close()
 
 
-ray_system = RayTracing(0, 0, 0, 0)
+ray_system = RayTracing()
 ray_system.main()
