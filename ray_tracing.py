@@ -37,8 +37,7 @@ class Ray(object):
     but the code will be less 'readable'.
     """
 
-    def __init__(self):
-        option = 1
+    def __init__(self, option):
         if option == 1:
             self.BF = BarotropicBackFlow()
             self.Barotropic = True
@@ -86,53 +85,37 @@ class Ray(object):
                    - kz * self.BF.dVx_dz(x)  # only if doppler shift k*V is relevant
 
 
-class RayTracing(object):
+class RayTracing(Ray):
     # simulates a coupled pendulums system, including pendulums and springs
-    def __init__(self, x0, z0, kx0, kz0):
+    def __init__(self, x0, z0, kx0, kz0, t0=0, t_final=1, N_eval=11, option=1):
         # initialize pendulums system data. accepts input file name or path (string)
         # initialize ray data.
+        Ray.__init__(self, option=option)
         self.x0, self.z0, self.kx0, self.kz0 = x0, z0, kx0, kz0
-        self.ray = Ray()
-        self.t = 0
-        self.t_final = 1
-        N_measure = 11
-        self.dt = int((self.t_final - self.t) / N_measure)
+        self.t0 = t0
+        self.t_final = t_final
+        self.t_eval = np.linspace(t0, t_final, N_eval)
 
-    def set_system(self):
-        """
-        set the system to initial time.
-        this function is still not needed. maybe later on
-        """
-        pass
-
-    def progressing_eq(self):
+    def progressing_eq(self, t, var0):
         """
         this equation returns differential equations, Runge-Kutta use.
         """
-        dx_dt = 0
-        dz_dt = 0
-        dkx_dt = 0
-        dkz_dt = 0
-        return dx_dt, dz_dt, dkx_dt, dkz_dt
+        if self.Barotropic:
+            return self.ode_x(var0[0], var0[2], var0[3]), self.ode_z(var0[0], var0[2], var0[3]), \
+                   self.ode_kx(var0[0], var0[2], var0[3]), self.ode_kz(var0[0], var0[2], var0[3])
+        else:
+            return self.ode_x(*var0), self.ode_z(*var0), self.ode_kx(*var0), self.ode_kz(*var0)
 
-    def jump(self, t0, t_bound, y0):
-        """
-        jump the system one time leap.
-        """
-        y = integrate.RK45(self.progressing_eq, t0, y0, t_bound)
-        return y
-
-    def output_line(self, x, z, kx, kz):
+    def output_line(self, t, x, z, kx, kz):
         """
         write data to output file
         """
-        output_line = '\n{0:6.6f}\t{1:6.6f}  {2:6.6f}\t{4:6.6f}  {5:6.6f}\t{6:6.6f}\t{7:6.6f}  {8:6.6f}  {9:6.6f}' \
-            .format(self.t, x, z, kx, kz, self.ray.omega, *self.ray.Cg)
+        output_line = '\n{0:6.6f}\t{1:6.6f}  {2:6.6f}\t{3:6.6f}  {4:6.6f}'.format(t, x, z, kx, kz)
         return output_line
 
     def open_data_file(self):
         file_output = open('Data.out', 'w')
-        file_output.write('\ntime\tx\tz\tk_x\tk_z\tomega\tCg_x\tCg_y\tCg_z\n')
+        file_output.write('\ntime\tx\tz\tk_x\tk_z')
         return file_output
 
     def main(self):
@@ -141,22 +124,15 @@ class RayTracing(object):
         it writes data to the output file N times.
         """
         # open output file
+
+        sol = integrate.solve_ivp(fun=self.progressing_eq, t_span=(self.t0, self.t_final),
+                                  y0=(self.x0, self.z0, self.kx0, self.kz0), method='RK45', t_eval=self.t_eval)
+
         file_output = self.open_data_file()
-
-        # set system for simulation and output initial data
-        self.set_system()
-        x, z, kx, kz = self.x0, self.z0, self.kx0, self.kz0
-        file_output.write(self.output_line(x, z, kx, kz))
-
-        # start moving time forward using algorithm
-        while self.t <= self.t_final:
-            x, z, kx, kz = self.jump(self.t, self.t + self.dt, x, z, kx, kz)
-            self.t += self.dt  # before or after the step?
-            file_output.write(self.output_line(x, z, kx, kz))
-
-        # close output files
+        for i in range(len(self.t_eval)):
+            file_output.write(self.output_line(sol.t[i], *sol.y[:, i]))
         file_output.close()
 
 
-ray_system = RayTracing()
+ray_system = RayTracing(0, 0, 1, 1)
 ray_system.main()
