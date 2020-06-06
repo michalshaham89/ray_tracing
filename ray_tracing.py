@@ -208,10 +208,7 @@ class RayTracing(Ray):
         file_output.close()
 
 
-def plot_simulation(file_name):
-    """
-    plots data from file
-    """
+def get_data_from_file(file_name):
     with open(file_name, 'r') as f:
         next(iter(f))
         x = []
@@ -221,7 +218,7 @@ def plot_simulation(file_name):
             x.append(float(line[1]) / 1000)
             z.append(float(line[2]) / 1000)
 
-    plt.plot(x, z)
+    return x, z
 
 
 if __name__ == "__main__":
@@ -236,7 +233,7 @@ if __name__ == "__main__":
     legend = []
     for x0, z0 in coordinates: # loop over multiple rays
         ray_system.run_simulation(x0, z0, 40e3, 1e2, x_lim=[-50e3, 60e3], z_lim=-0.6e3)
-        plot_simulation('Data.out')
+        plt.plot(*get_data_from_file('Data.out'))
         legend.append('x0: {}km'.format(x0 / 1000))
 
     # plot background flow
@@ -249,7 +246,7 @@ if __name__ == "__main__":
         V = ray_system.BF.V(X * 1000, Z * 1000)
     plt.contour(X, Z, V, 3, colors='black')
 
-    plt.title('ray tracing')
+    plt.title('Ray Tracing: ' + ['Barotropic' if barotropic else 'Baroclinic'][0] + ' flow, angle: ' + str(theta))
     plt.ylabel('z [km]')
     plt.xlabel('x [km]')
     plt.legend(legend)
