@@ -233,7 +233,7 @@ if __name__ == "__main__":
     legend = []
     for x0, z0 in coordinates: # loop over multiple rays
         ray_system.run_simulation(x0, z0, 40e3, 1e2, x_lim=[-50e3, 60e3], z_lim=-0.6e3)
-        plt.plot(*get_data_from_file('Data.out'))
+        plt.plot(*get_data_from_file('Data.out'), 'k')
         legend.append('x0: {}km'.format(x0 / 1000))
 
     # plot background flow
@@ -244,7 +244,7 @@ if __name__ == "__main__":
         V = ray_system.BF.V(X * 1000)
     else:
         V = ray_system.BF.V(X * 1000, Z * 1000)
-    plt.contour(X, Z, V, 3, colors='black')
+    plt.contour(X, Z, V, 3, colors='b')
 
     plt.title('Ray Tracing: ' + ['Barotropic' if barotropic else 'Baroclinic'][0] + ' flow, angle: ' + str(theta))
     plt.ylabel('z [km]')

@@ -1,7 +1,7 @@
 from ray_tracing import *
 
 
-def plotting(ax, barotropic, theta, coordinates=[(x * 1e3, 0) for x in np.linspace(-30, 20, 11)]):
+def plotting(ax, barotropic, theta, coordinates=[(x * 1e3, 0) for x in np.arange(-24,20,8)]):
     """
     this functions runs and plots ray tracing simulation for a subplot.
     subplot is given via argument 'ax'.
@@ -11,7 +11,7 @@ def plotting(ax, barotropic, theta, coordinates=[(x * 1e3, 0) for x in np.linspa
     legend = []
     for x0, z0 in coordinates:  # loop over multiple rays
         ray_system.run_simulation(x0, z0, 40e3, 1e2, x_lim=[-50e3, 60e3], z_lim=-0.6e3)
-        ax.plot(*get_data_from_file('Data.out'), 'k')
+        ax.plot(*get_data_from_file('Data.out'), 'b')
         legend.append('x0: {}km'.format(x0 / 1000))
 
     # plot background flow
@@ -22,7 +22,7 @@ def plotting(ax, barotropic, theta, coordinates=[(x * 1e3, 0) for x in np.linspa
         V = ray_system.BF.V(X * 1000)
     else:
         V = ray_system.BF.V(X * 1000, Z * 1000)
-    ax.contour(X, Z, V, 3, colors='b')
+    ax.contour(X, Z, V, 3, colors='k')
 
     ax.set_ylim((-0.3, 0))
     ax.set_xlim((-40, 40))
