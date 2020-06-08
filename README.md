@@ -1,7 +1,7 @@
 # ray_tracing
 ray tracing algorithm for oceanography
 
-the code runs a simulation for ray tracing, according to the data in Kunze 1985.
+the code 'ray tracing' runs a simulation for ray tracing, according to the data in Kunze 1985.
 fits midlatitude open ocean, southward geostrophic jet.
 
 simulation parameters:
@@ -9,3 +9,5 @@ simulation parameters:
 angle between wave and flow.
 starting coordinate.
 (set the parameters in the 'main' part)
+
+('plotting' code is for plotting different simulations as subplots.)
